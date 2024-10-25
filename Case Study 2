@@ -1,0 +1,46 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
+
+stocks = ['AAPL', 'MSFT', 'GOOGL']
+start_date = '2020-01-01'
+end_date = '2022-06-30'
+
+stock_data = {}
+mse_results = {}
+
+for stock in stocks:
+    print(f"\nProcessing stock: {stock}")
+    
+    data = yf.download(stock, start=start_date, end=end_date)['Close']
+    stock_data[stock] = data  # Store original data
+    
+    data_log = np.log(data)
+    
+    train_size = int(len(data_log) * 0.8)
+    train, test = data_log[:train_size], data_log[train_size:]
+
+    model = ARIMA(train, order=(5, 1, 0))
+    model_fit = model.fit()
+    
+    predictions = model_fit.forecast(steps=len(test))
+    mse = mean_squared_error(test, predictions)
+    mse_results[stock] = mse
+    
+    print(f'{stock} Mean Squared Error (MSE): {mse:.4f}')
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(data_log, label=f'{stock} Actual Prices (Log Transformed)')
+    plt.plot(pd.Series(predictions, index=test.index), color='red', label=f'{stock} ARIMA Predictions')
+    plt.title(f'{stock} Price Prediction with ARIMA')
+    plt.xlabel('Date')
+    plt.ylabel('Log Price')
+    plt.legend()
+    plt.show()
+
+print("\nMean Squared Errors for each stock:")
+for stock, mse in mse_results.items():
+    print(f"{stock}: {mse:.4f}")
